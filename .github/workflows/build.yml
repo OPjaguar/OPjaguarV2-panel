@@ -1,0 +1,58 @@
+name: Build OPjaguar Panel
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+permissions:
+  contents: write   # necesario para publicar versiones (auto-actualizacion)
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Descargar el codigo
+        uses: actions/checkout@v5
+      - name: Instalar Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+      - name: Instalar dependencias
+        run: npm install
+      - name: Asegurar herramientas de construccion
+        run: npm install --save-dev electron@31.0.0 electron-builder@24.13.3
+      - name: Construir y publicar (Windows)
+        run: npx --yes electron-builder --win --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Subir instalador de Windows
+        uses: actions/upload-artifact@v5
+        with:
+          name: OPjaguar-Windows
+          path: dist/*.exe
+          if-no-files-found: warn
+
+  build-mac:
+    runs-on: macos-latest
+    steps:
+      - name: Descargar el codigo
+        uses: actions/checkout@v5
+      - name: Instalar Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+      - name: Instalar dependencias
+        run: npm install
+      - name: Asegurar herramientas de construccion
+        run: npm install --save-dev electron@31.0.0 electron-builder@24.13.3
+      - name: Construir y publicar (Mac)
+        run: npx --yes electron-builder --mac --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Subir instalador de Mac
+        uses: actions/upload-artifact@v5
+        with:
+          name: OPjaguar-Mac
+          path: dist/*.dmg
+          if-no-files-found: warn
