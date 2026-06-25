@@ -1,0 +1,60 @@
+{
+  "name": "opjaguar-panel",
+  "version": "2.0.0",
+  "description": "OPjaguar - Panel de Control",
+  "main": "main.js",
+  "author": "Inti - OPjaguar",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "build": "npx --yes electron-builder --win --publish never",
+    "build:portable": "npx --yes electron-builder --win portable --publish never",
+    "build:mac": "npx --yes electron-builder --mac --publish never"
+  },
+  "devDependencies": {
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.opjaguar.panel",
+    "productName": "OPjaguar Panel",
+    "files": [
+      "main.js",
+      "panel.html",
+      "icon.png",
+      "icon.ico"
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "icon": "icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "OPjaguar Panel"
+    },
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "category": "public.app-category.business",
+      "icon": "icon.png"
+    },
+    "electronVersion": "31.0.0",
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "OPjaguar",
+        "repo": "opjaguar-panel"
+      }
+    ]
+  },
+  "dependencies": {
+    "electron-updater": "^6.1.7"
+  }
+}
