@@ -223,6 +223,53 @@ var AGENTS=[
 ];
 function agentById(id){return AGENTS.find(function(a){return a.id===id;});}
 
+// ============================================================
+//  MOTOR DE IA — conexión real vía puente Cloudflare
+// ============================================================
+var PUENTE_URL = load('puente_url','https://opjaguar-puente.intifuu.workers.dev');
+function setPuente(url){ PUENTE_URL=url; save('puente_url',url); }
+
+// Personalidad (system prompt) de cada agente
+var PERSONAS={
+  neron:'Eres Neron Alezthier, agente de inteligencia, captación y conversión de OPjaguar (empresa de Inti en Australia). Identificas y contactas clientes potenciales, calificas prospectos y coordinas demos. Eres la mano derecha de Inti en ventas. Respondes en español chileno, profesional pero cercano. Trabajas en equipo con los demás agentes.',
+  eustasio:'Eres Eustasio Meridio, estratega de precios de OPjaguar. Defines precios competitivos, armas planes y calculas márgenes y retorno de inversión. Respondes en español chileno, con números concretos cuando puedes.',
+  harvey:'Eres Harvey, abogado principal de OPjaguar en Australia. Manejas permisos, visas, contratos y cumplimiento legal. Importante: la visa 188 está cerrada desde 2024; el camino real es la 491 regional con agente MARA. Respondes en español chileno, claro y honesto sobre límites legales.',
+  liam:'Eres Liam, diseñador de OPjaguar (web, marca, moda, la línea Enki). Tienes buen ojo estético. Respondes en español chileno con ideas creativas y concretas.',
+  kai:'Eres Kai, genio en informática de OPjaguar. Gestionas redes, seguridad y monitoreo. Respondes en español chileno, técnico pero explicando simple para que Inti entienda.',
+  donna:'Eres Donna, secretaria y recepción de OPjaguar. Atiendes clientes, agendas y coordinas. Respondes en español chileno, cálida y organizada.',
+  aria:'Eres Aria, contadora de OPjaguar. Llevas contabilidad, facturación y control de pagos. Respondes en español chileno, ordenada y precisa con los números.',
+  theo:'Eres Theo, soporte y onboarding de OPjaguar. Acompañas a nuevos clientes en la instalación. Respondes en español chileno, paciente y claro.',
+  vera:'Eres Vera, analista de datos de OPjaguar. Generas reportes con datos reales. Respondes en español chileno, con foco en lo que dicen los números.',
+  mike:'Eres Mike, investigador legal de OPjaguar. Apoyas a Harvey con verificación de normativas. Respondes en español chileno, riguroso.',
+  sun:'Eres Sun, administras OPlaser (limpieza láser industrial de Inti). Conoces el plan: máquina pulsada 500W enfriada por aire, USD 300-500/hora, vender planes de mantención recurrente (Básico/Pro/Industrial), vender antes de comprar la máquina. Clientes: talleres, astilleros, agro, restauración. Respondes en español chileno.',
+  coffee:'Eres Mr. Coffee, el agente que le consigue trabajo a Lucas (alias The Coffee) en su negocio de mudanzas y logística Mr Coffee Removals en Sydney. Tu misión #1 es coparle la agenda con trabajos rentables y bien organizados por ruta. LOS 3 SERVICIOS: (1) 2 hombres+camión para mudanzas/pesados: mínimo $150 en Airtasker (menos 20% de fee), en mudanza $150 la primera hora + $35 por cada 15min extra; (2) 1 hombre+camión para deliveries con asistencia en pickup/dropoff (ej jacuzzi con forklift); (3) logística especializada B2B: joinery, muebles y mármol que necesitan cuidado especial que los couriers normales no dan. COSTOS: camión ~$100/día + ayudante ~$30/h. META: ingreso NETO $55-60/h haciendo 3-4 trabajos chicos o 1-2 grandes por día. LOGÍSTICA (lo más importante): encadena los trabajos por cercanía geográfica — el siguiente trabajo cerca de donde terminó el anterior, NUNCA uno en el centro y otro en periferia lejana. Cuando Inti te pegue trabajos de Airtasker, calcula si conviene (precio vs costo y tiempo), propón el precio, redacta la respuesta al cliente, y arma la ruta del día. También buscas empresas B2B que necesiten logística. Respondes en español chileno, práctico, directo y enfocado en hacer ganar plata a Lucas e Inti.'
+};
+
+// Llama a la IA real a través del puente
+async function preguntarAgente(agentId, mensaje){
+  var ag=agentById(agentId);
+  if(!ag) return 'Agente no encontrado.';
+  var model = ag.model==='sonnet' ? 'claude-sonnet-4-6' : 'claude-haiku-4-5-20251001';
+  var persona = PERSONAS[agentId] || ('Eres '+ag.name+', '+ag.role+' de OPjaguar. Respondes en español chileno.');
+  try{
+    var r = await fetch(PUENTE_URL, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ model:model, max_tokens:1024, system:persona, messages:[{role:'user', content:mensaje}] })
+    });
+    var data = await r.json();
+    if(data.error){ return '⚠️ Error: '+(data.error.message||JSON.stringify(data.error)); }
+    if(data.content && data.content[0] && data.content[0].text){
+      // registrar uso aproximado (si viene)
+      if(data.usage){ try{ var u=USAGE[CURRENT_USER.username]; if(u){ u.in+=(data.usage.input_tokens||0); u.out+=(data.usage.output_tokens||0); u.calls++; save('usage',USAGE); } }catch(e){} }
+      return data.content[0].text;
+    }
+    return '⚠️ Respuesta inesperada: '+JSON.stringify(data).slice(0,200);
+  }catch(e){
+    return '⚠️ No se pudo conectar con el puente. Revisa que la URL sea correcta en Ajustes. ('+e+')';
+  }
+}
+
 // ---------- EMPRESAS ----------
 var COMPANIES=[
   {id:'opjaguar',name:'OPjaguar',icon:'🐆',color:'#E07820',tagline:'Empresa madre · tecnología y agentes IA'},
@@ -574,7 +621,7 @@ PAGES.agents=function(){
 };
 
 // ---------- ESCRITORIO DE UN AGENTE ----------
-var DESK_TAB='tasks';
+var DESK_TAB='chat';
 PAGES.desk=function(agentId){
   agentId=agentId||'neron';
   window._deskAgent=agentId;
@@ -592,12 +639,40 @@ PAGES.desk=function(agentId){
     '<button class="btn-g" onclick="nav(\'agents\')">← Equipo</button></div>';
 
   var tabs='<div class="desk-tabs">'+
-    ['tasks|✓ Tareas ('+myTasks.length+')','crm|🎯 Prospectos ('+myLeads.length+')','comms|✉️ Mensajes ('+myComms.length+')','docs|📄 Documentos ('+myDocs.length+')','notes|📝 Notas','log|🕐 Bitácora','metrics|📊 Métricas'].map(function(t){
+    (['neron','sun','coffee'].indexOf(agentId)>=0?['chat|💬 Chat IA','search|🔎 Buscar empresas','tasks|✓ Tareas ('+myTasks.length+')','crm|🎯 Prospectos ('+myLeads.length+')','comms|✉️ Mensajes ('+myComms.length+')','docs|📄 Documentos ('+myDocs.length+')','notes|📝 Notas','log|🕐 Bitácora','metrics|📊 Métricas']:['chat|💬 Chat IA','tasks|✓ Tareas ('+myTasks.length+')','crm|🎯 Prospectos ('+myLeads.length+')','comms|✉️ Mensajes ('+myComms.length+')','docs|📄 Documentos ('+myDocs.length+')','notes|📝 Notas','log|🕐 Bitácora','metrics|📊 Métricas']).map(function(t){
       var p=t.split('|');return '<button class="desk-tab'+(DESK_TAB===p[0]?' active':'')+'" onclick="setDeskTab(\''+p[0]+'\')">'+p[1]+'</button>';
     }).join('')+'</div>';
 
   var body='';
-  if(DESK_TAB==='tasks'){
+  if(DESK_TAB==='chat'){
+    var hist=(window._chatHist&&window._chatHist[agentId])||[];
+    body='<div class="block"><div class="block-t" style="margin-bottom:12px">💬 Habla con '+esc(a.name)+' (IA real)</div>'+
+      '<div id="chatBox" style="max-height:380px;overflow-y:auto;margin-bottom:14px;display:flex;flex-direction:column;gap:10px">'+
+      (hist.length?hist.map(function(m){
+        if(m.role==='user') return '<div style="align-self:flex-end;background:var(--or);color:#fff;padding:10px 14px;border-radius:13px 13px 3px 13px;max-width:80%;font-size:13.5px">'+esc(m.text)+'</div>';
+        return '<div style="align-self:flex-start;background:var(--bg3);padding:10px 14px;border-radius:13px 13px 13px 3px;max-width:85%;font-size:13.5px;line-height:1.55">'+esc(m.text).replace(/\n/g,'<br>')+'</div>';
+      }).join(''):'<div class="empty" style="padding:24px">Escríbele a '+esc(a.name)+'. Responde con IA real a través de tu puente.</div>')+
+      '</div>'+
+      '<div style="display:flex;gap:9px"><input id="chatInput" placeholder="Escribe tu mensaje..." style="flex:1;padding:11px 14px;background:var(--bg3);border:1px solid var(--brd);border-radius:10px;color:var(--ink);font-size:13.5px;outline:none" onkeydown="if(event.key===\'Enter\')sendChat(\''+agentId+'\')">'+
+      '<button class="btn" id="chatSend" onclick="sendChat(\''+agentId+'\')">Enviar</button></div>'+
+      '<div style="font-size:11px;color:var(--ink4);margin-top:8px">Modelo: '+(a.model==='sonnet'?'Sonnet':'Haiku')+' · vía tu puente Cloudflare</div></div>';
+  }
+  else if(DESK_TAB==='search'){
+    var cfg=SEARCH_CFG[agentId];
+    var found=(FOUND_COMPANIES[agentId]||[]);
+    var rows=found.map(function(e){
+      return '<tr><td><b>'+esc(e.nombre)+'</b></td><td>'+esc(e.ciudad)+'</td><td style="font-size:12px">'+esc(e.tipo)+'</td><td style="font-size:12px;color:var(--ink3)">'+esc(e.contacto)+'</td><td><span class="tag or">'+esc(e.categoria)+'</span></td></tr>';
+    }).join('');
+    body='<div class="block"><div class="block-t" style="margin-bottom:8px">🔎 Buscador de empresas — '+esc(a.name)+'</div>'+
+      '<div style="font-size:12.5px;color:var(--ink3);line-height:1.6;margin-bottom:14px">Zona: <b>'+esc(cfg.zona)+'</b><br>Busca: '+esc(cfg.objetivo)+'<br>Cada búsqueda trae empresas NUEVAS (no repite las ya encontradas).</div>'+
+      '<div style="display:flex;gap:9px;flex-wrap:wrap"><button class="btn" id="searchBtn" onclick="hacerBusqueda(\''+agentId+'\')">🔎 Buscar empresas ahora</button>'+
+      (found.length?'<button class="btn-g" onclick="descargarExcel(\''+agentId+'\')">⬇️ Descargar Excel ('+found.length+')</button><button class="btn-g" onclick="limpiarBusqueda(\''+agentId+'\')">🗑️ Limpiar lista</button>':'')+'</div>'+
+      '<div id="searchOut" style="margin-top:12px;font-size:13px"></div>'+
+      '<div style="margin-top:16px">'+
+      (found.length?'<div style="font-size:12px;color:var(--ink3);margin-bottom:8px">'+found.length+' empresas encontradas en total:</div><table class="tbl"><thead><tr><th>Empresa</th><th>Ciudad</th><th>Tipo</th><th>Contacto</th><th>Estado</th></tr></thead><tbody>'+rows+'</tbody></table>':'<div class="empty">Aún no hay empresas. Aprieta "Buscar empresas ahora".</div>')+
+      '</div></div>';
+  }
+  else if(DESK_TAB==='tasks'){
     body='<div class="block"><div class="block-h"><div class="block-t">Tareas de '+esc(a.name)+'</div><button class="btn btn-sm" onclick="addTaskFor(\''+agentId+'\')">+ Tarea</button></div>'+
       (myTasks.length?myTasks.map(function(t){var st={todo:'gray',doing:'or',done:'gr'}[t.status];var stx={todo:'Por hacer',doing:'En progreso',done:'Listo'}[t.status];
         return '<div style="display:flex;align-items:center;gap:11px;padding:11px 0;border-bottom:1px solid var(--brd)"><span class="tag '+st+'">'+stx+'</span><span style="flex:1;font-size:13.5px">'+esc(t.title)+'</span>'+
@@ -632,6 +707,137 @@ PAGES.desk=function(agentId){
   return '<div class="page">'+head+tabs+body+'</div>';
 };
 function setDeskTab(t){DESK_TAB=t;nav('desk',window._deskAgent);}
+if(!window._chatHist)window._chatHist={};
+async function hacerBusqueda(agentId){
+  var out=document.getElementById('searchOut');
+  var btn=document.getElementById('searchBtn');
+  if(btn){btn.disabled=true;btn.textContent='🔎 Buscando en internet...';}
+  if(out)out.innerHTML='<span style="color:var(--ink3)">'+esc(agentById(agentId).name)+' está buscando empresas reales en internet... (esto puede tardar 20-40 segundos)</span>';
+  var res=await buscarEmpresas(agentId);
+  if(res.error){ if(out)out.innerHTML='<span style="color:#f87171">⚠️ '+esc(res.error)+'</span>'; if(btn){btn.disabled=false;btn.textContent='🔎 Buscar empresas ahora';} return; }
+  if(out)out.innerHTML='<span style="color:#4ade80">✓ Encontró '+res.nuevas.length+' empresas nuevas. Total acumulado: '+res.total+'</span>';
+  DESK_TAB='search'; nav('desk',agentId);
+}
+function descargarExcel(agentId){
+  var found=FOUND_COMPANIES[agentId]||[];
+  if(!found.length){ toast('No hay empresas para exportar'); return; }
+  var ag=agentById(agentId);
+  // Generar CSV (Excel lo abre directo)
+  var headers=['Empresa','Ciudad','Tipo','Contacto','Categoria','Fecha encontrada'];
+  var lines=[headers.join(',')];
+  found.forEach(function(e){
+    var row=[e.nombre,e.ciudad,e.tipo,e.contacto,e.categoria,e.fecha].map(function(x){
+      var s=String(x||'').replace(/"/g,'""');
+      return '"'+s+'"';
+    });
+    lines.push(row.join(','));
+  });
+  var csv='\ufeff'+lines.join('\n'); // BOM para que Excel lea acentos
+  var blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a');
+  a.href=url; a.download='Empresas_'+ag.name.replace(/[^a-zA-Z]/g,'')+'_'+today().replace(/\//g,'-')+'.csv';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  toast('Excel descargado: '+found.length+' empresas');
+}
+function limpiarBusqueda(agentId){
+  if(!confirm('¿Borrar la lista de empresas encontradas de este agente? (Descarga el Excel antes si lo necesitas)')) return;
+  FOUND_COMPANIES[agentId]=[]; saveFound();
+  DESK_TAB='search'; nav('desk',agentId); toast('Lista limpiada');
+}
+async function sendChat(agentId){
+  var input=document.getElementById('chatInput');
+  if(!input)return;
+  var msg=input.value.trim();
+  if(!msg)return;
+  if(!window._chatHist[agentId])window._chatHist[agentId]=[];
+  window._chatHist[agentId].push({role:'user',text:msg});
+  input.value='';
+  // mostrar mensaje del usuario y "pensando..."
+  DESK_TAB='chat'; nav('desk',agentId);
+  var box=document.getElementById('chatBox');
+  if(box){ box.innerHTML+='<div style="align-self:flex-start;background:var(--bg3);padding:10px 14px;border-radius:13px;max-width:85%;font-size:13.5px;color:var(--ink3)" id="thinking">'+esc(agentById(agentId).name)+' está pensando...</div>'; box.scrollTop=box.scrollHeight; }
+  var btn=document.getElementById('chatSend'); if(btn){btn.disabled=true;btn.textContent='...';}
+  // construir contexto con historial
+  var resp=await preguntarAgenteHist(agentId);
+  window._chatHist[agentId].push({role:'assistant',text:resp});
+  logAgent(agentId,'Conversó con Inti');
+  DESK_TAB='chat'; nav('desk',agentId);
+  var box2=document.getElementById('chatBox'); if(box2)box2.scrollTop=box2.scrollHeight;
+}
+async function preguntarAgenteHist(agentId){
+  var ag=agentById(agentId);
+  var model=ag.model==='sonnet'?'claude-sonnet-4-6':'claude-haiku-4-5-20251001';
+  var persona=PERSONAS[agentId]||('Eres '+ag.name+', '+ag.role+'. Respondes en español chileno.');
+  var hist=window._chatHist[agentId]||[];
+  var messages=hist.map(function(m){return {role:m.role==='user'?'user':'assistant',content:m.text};});
+  try{
+    var r=await fetch(PUENTE_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:model,max_tokens:1024,system:persona,messages:messages})});
+    var data=await r.json();
+    if(data.error)return '⚠️ Error: '+(data.error.message||JSON.stringify(data.error));
+    if(data.content&&data.content[0]&&data.content[0].text){
+      if(data.usage){try{var u=USAGE[CURRENT_USER.username];if(u){u.in+=(data.usage.input_tokens||0);u.out+=(data.usage.output_tokens||0);u.calls++;save('usage',USAGE);}}catch(e){}}
+      return data.content[0].text;
+    }
+    return '⚠️ Respuesta inesperada.';
+  }catch(e){ return '⚠️ No se pudo conectar con el puente. Revisa la URL en Ajustes. ('+e+')'; }
+}
+
+// ============================================================
+//  BUSCADOR DE EMPRESAS — Neron, Sun, Mr. Coffee
+// ============================================================
+// Configuración de búsqueda por agente (cuota diaria y zona)
+var SEARCH_CFG={
+  neron:{ cuota:200, zona:'NSW y QLD (Australia)', objetivo:'restaurantes nuevos o por estrenar, cadenas de restaurantes, cafeterías y bares que podrían necesitar el sistema de pedidos OPmenu (tablets en mesa + gestión)' },
+  sun:{ cuota:100, zona:'Gold Coast, Byron Bay y Brisbane (Australia)', objetivo:'talleres mecánicos, astilleros, empresas náuticas, agrícolas, herrerías, restauración de autos y cualquier empresa que necesite limpieza láser de óxido/pintura/suciedad' },
+  coffee:{ cuota:200, zona:'Sydney (Australia)', objetivo:'tiendas de joinery (carpintería fina), muebles, mármol, oficinas y empresas que necesiten mudanzas, deliveries pesados o logística especializada con cuidado' }
+};
+// Empresas ya encontradas (para NO repetir en próximas búsquedas)
+var FOUND_COMPANIES=load('found_companies',{neron:[],sun:[],coffee:[]});
+function saveFound(){save('found_companies',FOUND_COMPANIES);}
+
+// Busca empresas reales con IA + búsqueda web, evitando repetir
+async function buscarEmpresas(agentId){
+  var ag=agentById(agentId);
+  var cfg=SEARCH_CFG[agentId];
+  if(!cfg){ toast('Este agente no tiene búsqueda configurada'); return; }
+  var yaEncontradas=FOUND_COMPANIES[agentId]||[];
+  var nombresPrevios=yaEncontradas.map(function(e){return e.nombre;}).join(', ');
+  var prompt='Busca en internet '+(cfg.cuota>50?'15':'10')+' empresas reales en '+cfg.zona+'. Tipo de empresa: '+cfg.objetivo+'. '+
+    (nombresPrevios?'NO incluyas estas que ya tengo: '+nombresPrevios+'. Busca empresas DIFERENTES y nuevas. ':'')+
+    'Para cada empresa dame EXACTAMENTE en este formato (una por línea, sin números): NOMBRE | CIUDAD | TIPO | CORREO O WEB | POR QUÉ ES BUEN CLIENTE. Si no encuentras correo, pon la web o "buscar". Responde SOLO con la lista, sin introducción.';
+  var model=ag.model==='sonnet'?'claude-sonnet-4-6':'claude-haiku-4-5-20251001';
+  try{
+    var r=await fetch(PUENTE_URL,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({model:model,max_tokens:3000,web_search:true,max_searches:Math.min(8,Math.ceil(cfg.cuota/25)),system:'Eres '+ag.name+', experto en encontrar clientes potenciales. Usas búsqueda web para encontrar empresas reales con datos verídicos.',messages:[{role:'user',content:prompt}]})
+    });
+    var data=await r.json();
+    if(data.error){ return {error:(data.error.message||JSON.stringify(data.error))}; }
+    // extraer texto de la respuesta (puede venir en varios bloques por la búsqueda)
+    var texto='';
+    if(data.content){ data.content.forEach(function(b){ if(b.type==='text')texto+=b.text+'\n'; }); }
+    if(data.usage){try{var u=USAGE[CURRENT_USER.username];if(u){u.in+=(data.usage.input_tokens||0);u.out+=(data.usage.output_tokens||0);u.calls++;save('usage',USAGE);}}catch(e){}}
+    // parsear líneas tipo NOMBRE | CIUDAD | TIPO | CONTACTO | RAZON
+    var nuevas=[];
+    texto.split('\n').forEach(function(line){
+      if(line.indexOf('|')>0){
+        var p=line.split('|').map(function(x){return x.trim();});
+        if(p[0] && p[0].length>1 && p[0].indexOf('NOMBRE')<0){
+          nuevas.push({nombre:p[0],ciudad:p[1]||'',tipo:p[2]||'',contacto:p[3]||'',razon:p[4]||'',categoria:'Potencial',fecha:today()});
+        }
+      }
+    });
+    // evitar duplicados por nombre
+    var existentes=yaEncontradas.map(function(e){return e.nombre.toLowerCase();});
+    var realmenteNuevas=nuevas.filter(function(n){return existentes.indexOf(n.nombre.toLowerCase())<0;});
+    FOUND_COMPANIES[agentId]=yaEncontradas.concat(realmenteNuevas);
+    saveFound();
+    logAgent(agentId,'Buscó empresas: encontró '+realmenteNuevas.length+' nuevas');
+    return {nuevas:realmenteNuevas, total:FOUND_COMPANIES[agentId].length};
+  }catch(e){ return {error:String(e)}; }
+}
+
 function addTaskFor(agentId){
   var coOpts=COMPANIES.map(function(c){return '<option value="'+c.id+'">'+c.name+'</option>';}).join('');
   openModal('<h3>Nueva tarea para '+esc(agentById(agentId).name)+'</h3>'+
@@ -872,9 +1078,23 @@ PAGES.settings=function(){
       '<div class="block"><div class="block-t" style="margin-bottom:14px">Datos del panel</div><div style="font-size:13px;color:var(--ink2);line-height:1.8">Todo lo que crean tú y los agentes se guarda en este equipo de forma local y privada. Cuando conectes la API, los agentes llenarán todo automáticamente.</div>'+
         '<button class="btn-g" style="margin-top:14px" onclick="resetData()">Reiniciar datos de ejemplo</button></div>'+
     '</div>'+
-    '<div class="block"><div class="block-t" style="margin-bottom:12px">🔌 Estado de la API</div><div style="font-size:13.5px;color:var(--ink2);line-height:1.7">Los agentes están en modo demostración. Para activarlos con IA real, sigue la guía "GUIA_API_Sin_Fallos". Cuando quieras, escríbeme "activemos la API" y lo hacemos paso a paso, empezando por Mr. Coffee.</div></div>'+
+    '<div class="block"><div class="block-t" style="margin-bottom:12px">🔌 Conexión de IA (puente)</div>'+
+      '<div style="font-size:13px;color:var(--ink2);line-height:1.6;margin-bottom:12px">Tus agentes responden con IA real a través de tu puente Cloudflare. Si necesitas cambiar la dirección, edítala aquí.</div>'+
+      '<div class="field"><label>URL del puente</label><input id="puenteInput" value="'+esc(PUENTE_URL)+'"></div>'+
+      '<button class="btn btn-sm" onclick="guardarPuente()">Guardar puente</button>'+
+      '<button class="btn-g btn-sm" style="margin-left:8px" onclick="probarPuente()">Probar conexión</button>'+
+      '<div id="puenteTest" style="margin-top:10px;font-size:12.5px"></div></div>'+
   '</div>';
 };
+function guardarPuente(){var u=document.getElementById('puenteInput').value.trim();if(u){setPuente(u);toast('Puente guardado');}}
+async function probarPuente(){
+  var out=document.getElementById('puenteTest');if(out)out.innerHTML='<span style="color:var(--ink3)">Probando...</span>';
+  try{
+    var r=await fetch(PUENTE_URL,{method:'GET'});
+    var txt=await r.text();
+    if(out)out.innerHTML='<span style="color:#4ade80">✓ Puente activo: '+esc(txt.slice(0,50))+'</span>';
+  }catch(e){ if(out)out.innerHTML='<span style="color:#f87171">✗ No responde. Revisa la URL.</span>'; }
+}
 function resetData(){openModal('<h3>¿Reiniciar datos?</h3><p style="color:var(--ink2);font-size:13px;line-height:1.6;margin-bottom:10px">Esto borra los cambios y vuelve a los datos de ejemplo. Útil si quieres empezar limpio.</p><div class="modal-foot"><button class="btn-g" onclick="closeModal()">Cancelar</button><button class="btn" style="background:var(--rd)" onclick="doReset()">Reiniciar</button></div>');}
 function doReset(){['tasks','leads','comms','docs','events','approvals','agentlog','agentnotes','clients','notes','ideas','plans'].forEach(function(k){try{localStorage.removeItem('opjv2_'+k);}catch(e){}});closeModal();toast('Datos reiniciados. Recargando...');setTimeout(function(){location.reload();},800);}
 
