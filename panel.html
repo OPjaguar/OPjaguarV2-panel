@@ -219,7 +219,7 @@ var AGENTS=[
   {id:'vera',icon:'📈',color:'#16a34a',model:'haiku',company:'OPjaguar',name:'Vera',role:'Analítica de datos',desc:'Genera los reportes semanales de cada cliente con datos reales.'},
   {id:'mike',icon:'📚',color:'#16a34a',model:'haiku',company:'OPjaguar',name:'Mike',role:'Investigación legal',desc:'Investiga normativas y respalda a Harvey con verificación cruzada.'},
   {id:'sun',icon:'🛡️',color:'#16a34a',model:'sonnet',company:'OPlaser',name:'Sun',role:'Administración OPlaser',desc:'Administra OPlaser: cotizaciones, planes de mantención, verificación de trabajos. Conoce el plan de la máquina láser 500W.'},
-  {id:'coffee',icon:'☕',color:'#d97706',model:'sonnet',company:'Mr Coffee Removals',name:'Mr. Coffee',role:'Captación y logística · mudanzas Lucas',desc:'Busca trabajos de mudanza y logística para Lucas en Sydney (Airtasker), negocia, envía correos y le copa la agenda con lógica geográfica.'}
+  {id:'coffee',icon:'☕',color:'#d97706',model:'sonnet',company:'Mr Coffee Removals',name:'Mr. Coffee',role:'Captación y logística · mudanzas Lucas',desc:'Busca trabajos de mudanza, delivery y logística especializada para Lucas en Sydney (Airtasker y tiendas). Conoce los 3 servicios, los precios reales y el objetivo de $55-60/h neto. Negocia, redacta correos y arma la agenda con lógica geográfica.'}
 ];
 function agentById(id){return AGENTS.find(function(a){return a.id===id;});}
 
@@ -267,7 +267,8 @@ function saveClients(){save('clients',CLIENTS);} function saveNotes(){save('note
 function seedTasks(){return [
   {id:'t1',title:'Contactar 5 restaurantes en Bondi para OPmenu',company:'opmenu',agent:'neron',status:'doing',priority:'alta',created:today()},
   {id:'t2',title:'Armar 3 planes de mantención para OPlaser',company:'oplaser',agent:'eustasio',status:'done',priority:'media',created:today()},
-  {id:'t3',title:'Buscar trabajos de mudanza en Airtasker (fin de semana)',company:'removals',agent:'coffee',status:'doing',priority:'alta',created:today()},
+  {id:'t3',title:'Buscar mudanzas y deliveries en Airtasker (fin de semana)',company:'removals',agent:'coffee',status:'doing',priority:'alta',created:today()},
+  {id:'t3b',title:'Contactar tiendas de joinery, muebles y marmol para delivery especializado',company:'removals',agent:'coffee',status:'todo',priority:'alta',created:today()},
   {id:'t4',title:'Redactar correo de presentación para talleres mecánicos',company:'oplaser',agent:'neron',status:'todo',priority:'media',created:today()},
   {id:'t5',title:'Diseñar identidad visual de Enki',company:'enki',agent:'liam',status:'todo',priority:'baja',created:today()},
   {id:'t6',title:'Preparar guion de demo de OPmenu',company:'opmenu',agent:'donna',status:'done',priority:'media',created:today()}
@@ -275,7 +276,8 @@ function seedTasks(){return [
 function seedLeads(){return [
   {id:'l1',name:'Trattoria Bella Vista',company:'opmenu',stage:'propuesta',value:690,agent:'neron',notes:'Encaje 94%. Interesados en plan Pro.'},
   {id:'l2',name:'Taller Mecánico Sur',company:'oplaser',stage:'contactado',value:1500,agent:'neron',notes:'Tienen flota con óxido. Buen candidato.'},
-  {id:'l3',name:'Mudanza oficina Parramatta',company:'removals',stage:'negociacion',value:600,agent:'coffee',notes:'Sábado AM. Cerca de otro trabajo en Westmead.'},
+  {id:'l3',name:'Mudanza oficina Parramatta',company:'removals',stage:'negociacion',value:600,agent:'coffee',notes:'2 hombres + camion. Sábado AM. Cerca de otro trabajo en Westmead (buena ruta).'},
+  {id:'l3b',name:'Joinery Co. (delivery muebles finos)',company:'removals',stage:'nuevo',value:800,agent:'coffee',notes:'Tienda de carpintería fina. Necesitan delivery con cuidado especial. Cliente B2B recurrente potencial.'},
   {id:'l4',name:'Café Milano',company:'opmenu',stage:'nuevo',value:540,agent:'donna',notes:'Recién contactados por Airtasker.'},
   {id:'l5',name:'Astillero Rozelle',company:'oplaser',stage:'nuevo',value:2200,agent:'sun',notes:'Óxido naval, trabajo recurrente.'}
 ];}
@@ -285,7 +287,8 @@ function seedComms(){return [
 ];}
 function seedDocs(){return [
   {id:'d1',agent:'eustasio',company:'oplaser',title:'Planes de mantención OPlaser',type:'Estrategia',content:'PLAN BÁSICO (mensual): mantención preventiva anti-óxido. PLAN PRO (quincenal): visitas + prioridad. PLAN INDUSTRIAL (semanal): para talleres y flotas.',created:today()},
-  {id:'d2',agent:'liam',company:'enki',title:'Concepto de marca Enki',type:'Diseño',content:'Identidad: minimalista, algodón pima, paleta tierra. Logo en proceso. Print-on-demand para empezar sin inventario.',created:today()}
+  {id:'d2',agent:'liam',company:'enki',title:'Concepto de marca Enki',type:'Diseño',content:'Identidad: minimalista, algodón pima, paleta tierra. Logo en proceso. Print-on-demand para empezar sin inventario.',created:today()},
+  {id:'d3',agent:'coffee',company:'removals',title:'Modelo de negocio Mr Coffee Removals',type:'Estrategia',content:'3 SERVICIOS: (1) 2 hombres+camion: mudanzas/pesados, min $150 en Airtasker (-20% fee), mudanza $150 1ra hora + $35 por 15min extra. (2) 1 hombre+camion: deliveries con asistencia en pickup/dropoff (ej jacuzzi con forklift). (3) Logistica especializada B2B: joinery, muebles, marmol que necesitan cuidado especial. COSTOS: camion ~$100/dia + ayudante ~$30/h. META: neto $55-60/h haciendo 3-4 trabajos chicos o 1-2 grandes/dia con buena logistica de ruta.',created:today()}
 ];}
 function seedEvents(){return [
   {id:'e1',title:'Demo OPmenu — Trattoria',company:'opmenu',date:today(),time:'15:00',type:'Demo'},
@@ -298,7 +301,7 @@ function seedApprovals(){return [
 ];}
 function seedAgentLog(){var l={};AGENTS.forEach(function(a){l[a.id]=[];});
   l.neron=[{act:'Calificó 14 prospectos esta semana',date:today()},{act:'Redactó correo para Trattoria Bella Vista',date:today()}];
-  l.coffee=[{act:'Revisó Airtasker: buena demanda de mudanzas el fin de semana',date:today()},{act:'Encontró trabajo en Parramatta cerca de Westmead',date:today()}];
+  l.coffee=[{act:'Revisó Airtasker: buena demanda de mudanzas y deliveries el fin de semana',date:today()},{act:'Encontró trabajo en Parramatta cerca de Westmead (ruta lógica)',date:today()},{act:'Empezó a listar tiendas de joinery y muebles para delivery especializado',date:today()}];
   l.eustasio=[{act:'Creó los 3 planes de mantención de OPlaser',date:today()}];
   l.sun=[{act:'Identificó astillero en Rozelle como cliente recurrente',date:today()}];
   return l;
@@ -776,9 +779,13 @@ PAGES.co_enki=function(){return companyDash('enki',[
   {t:'Estado',c:'En desarrollo. Liam puede ir preparando diseños e identidad mientras avanzan OPmenu y OPlaser.'}
 ]);};
 PAGES.co_removals=function(){return companyDash('removals',[
-  {t:'El negocio',c:'Lucas (The Coffee) arrienda un camión y hace mudanzas y logística en Sydney vía Airtasker. Cobra ~USD 120–150/h, hasta ~USD 800 netos en un día de 10–12 h, 3 clientes/día.'},
-  {t:'Tarifas',c:'Primera hora más barata (~$100) como gancho por el fee alto de Airtasker; luego $150/h. Mr. Coffee encadena trabajos con lógica geográfica (el siguiente cerca del anterior).'},
-  {t:'Lo que gana Inti',c:'Lucas le paga USD 10/h por el trabajo conseguido. Copando 10 h/día de agenda = ~USD 100/día. La API cuesta menos que eso al mes: <b>se paga sola</b>. Esta es la vía a la IA autosustentable.'}
+  {t:'El negocio',c:'Lucas (The Coffee) hace mudanzas, deliveries y logística en Sydney vía Airtasker y clientes directos. Costos: arriendo del camión ~$100/día + ayudante ~$30/hora. Objetivo: ingreso NETO mínimo $55-60/hora después de pagar labour y camión.'},
+  {t:'Servicio 1 · 2 hombres y camión',c:'Para mudanzas o delivery de cosas pesadas. Mínimo en Airtasker: $150 (menos 20% de fee). En mudanzas: $150 la primera hora y $35 por cada 15 minutos extra. Ideal para trabajos que requieren dos personas cargando.'},
+  {t:'Servicio 2 · 1 hombre y camión',c:'Para deliveries con asistencia en pickup y drop-off. Ej: un jacuzzi desde área industrial — se sube con forklift y en el destino se desensambla y se lleva por piezas. Trabajos donde el cliente ayuda o hay equipo en los puntos.'},
+  {t:'Servicio 3 · Logística especializada (el nuevo foco)',c:'Generar contactos con tiendas de joinery (carpintería fina), muebles y mármol que necesitan cuidados especiales en sus deliveries — los couriers normales no toman suficientes precauciones. Según tamaño y peso: van, camión, uno o dos hombres. Este es ingreso recurrente B2B, no solo trabajos sueltos.'},
+  {t:'La logística (clave del margen)',c:'Para llegar al neto de $55-60/h hay que hacer mínimo 3-4 trabajos chicos o 1-2 grandes por día, con buena logística de despacho. Mr. Coffee encadena los trabajos por cercanía geográfica para no perder tiempo ni combustible entre uno y otro.'},
+  {t:'Qué hace Mr. Coffee',c:'Busca trabajos en Airtasker (los 3 tipos de servicio), contacta tiendas de joinery/muebles/mármol para el servicio especializado, negocia, redacta correos y arma la agenda diaria con ruta lógica. Trabaja con Neron (negociaciones) y Eustasio (precios).'},
+  {t:'Lo que gana Inti',c:'Inti consigue y agenda el trabajo desde aquí con la IA. Copando la agenda, genera ingreso mientras la IA cuesta mucho menos: <b>la IA se paga sola</b>. Esta es la vía a que OPjaguar sea autosustentable.'}
 ]);};
 
 // ---------- FINANZAS ----------

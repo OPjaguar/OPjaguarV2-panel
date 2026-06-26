@@ -1,14 +1,6 @@
-// OPjaguar Panel — Electron main process (con auto-actualización)
-const { app, BrowserWindow, Menu, dialog } = require('electron');
+// OPjaguar Panel — Electron main process
+const { app, BrowserWindow, Menu } = require('electron');
 const path = require('path');
-
-// Auto-actualización: la app se actualiza sola desde GitHub (como Apple/Android)
-let autoUpdater = null;
-try {
-  autoUpdater = require('electron-updater').autoUpdater;
-} catch (e) {
-  // si electron-updater no está disponible, la app sigue funcionando normal
-}
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -24,7 +16,6 @@ function createWindow() {
       nodeIntegration: false,
     },
   });
-
   win.loadFile('panel.html');
   Menu.setApplicationMenu(null);
   return win;
@@ -32,28 +23,6 @@ function createWindow() {
 
 app.whenReady().then(() => {
   createWindow();
-
-  // Revisar si hay actualización al abrir (silenciosamente)
-  if (autoUpdater) {
-    try {
-      autoUpdater.checkForUpdatesAndNotify();
-
-      // Cuando hay una versión nueva descargada, avisar y aplicar al reiniciar
-      autoUpdater.on('update-downloaded', () => {
-        dialog.showMessageBox({
-          type: 'info',
-          title: 'Actualización lista',
-          message: 'Hay una versión nueva de OPjaguar Panel. Se aplicará al reiniciar la app.',
-          buttons: ['Reiniciar ahora', 'Más tarde']
-        }).then(result => {
-          if (result.response === 0) autoUpdater.quitAndInstall();
-        });
-      });
-    } catch (e) {
-      // si falla la actualización, la app sigue funcionando con normalidad
-    }
-  }
-
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
